@@ -219,6 +219,7 @@ const QuickInputView = (() => {
           workerPath: 'vendor/tess/worker.min.js?v=7',
           corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
           langPath: 'vendor/tess/',
+          gzip: false, // GitHub Pages 对 .gz 返回空体, 改用未压缩 .traineddata
           logger: (m) => {
             if (m.status === 'recognizing text') show(I18n.t('识别中… {p}%', { p: Math.round((m.progress || 0) * 100) }));
             else if (m.status) show(I18n.t('OCR · {s}…', { s: m.status }));

@@ -39,6 +39,7 @@ const AccountsView = (() => {
         workerPath: 'vendor/tess/worker.min.js?v=7',
         corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
         langPath: 'vendor/tess/',
+        gzip: false, // GitHub Pages 对 .gz 返回空体, 改用未压缩 .traineddata
       });
       try { await w.setParameters({ tessedit_char_whitelist: '0123456789 ' }); } catch (e) {}
       _ocrWorker = w;
