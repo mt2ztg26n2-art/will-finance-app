@@ -29,19 +29,35 @@ const AccountsView = (() => {
     s.onerror = () => reject(new Error(I18n.t('Tesseract 主库加载失败')));
     document.head.appendChild(s);
   });
+  // OCR 语言模型 CDN 候选: 优先 jsDelivr 取本仓库压缩包, 回退官方 tessdata 默认源
+  // (GitHub Pages 对 .traineddata 体会截断/空体, 不可靠, 故改用 CDN + gzip 压缩模型)
+  const _OCR_LANG_PATHS = [
+    'https://cdn.jsdelivr.net/gh/mt2ztg26n2-art/will-finance-app@master/vendor/tess/',
+    'https://tessdata.projectnaptha.com/4.0.0_fast/'
+  ];
+  const _createOcrWorker = async (lang, params) => {
+    let lastErr;
+    for (const lp of _OCR_LANG_PATHS) {
+      try {
+        const w = await window.Tesseract.createWorker(lang, 1, {
+          workerPath: 'vendor/tess/worker.min.js?v=7',
+          corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
+          langPath: lp,
+          gzip: true, // 压缩模型, 下载更小更快
+        });
+        if (params) { try { await w.setParameters(params); } catch (e) {} }
+        return w;
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('OCR worker 创建失败');
+  };
   const _getOcrWorker = async () => {
     if (_ocrWorker) return _ocrWorker;
     if (_ocrLoading) return _ocrLoading;
     _ocrLoading = (async () => {
       await _ensureTesseract();
       // 银行卡号只有数字: 用 eng(输出类 ~100) 远快于 chi_sim(数千中文类); 发卡行靠 BIN 查, 不靠 OCR
-      const w = await window.Tesseract.createWorker('eng', 1, {
-        workerPath: 'vendor/tess/worker.min.js?v=7',
-        corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
-        langPath: 'vendor/tess/',
-        gzip: false, // GitHub Pages 对 .gz 返回空体, 改用未压缩 .traineddata
-      });
-      try { await w.setParameters({ tessedit_char_whitelist: '0123456789 ' }); } catch (e) {}
+      const w = await _createOcrWorker('eng', { tessedit_char_whitelist: '0123456789 ' });
       _ocrWorker = w;
       _ocrLoading = null;
       return w;

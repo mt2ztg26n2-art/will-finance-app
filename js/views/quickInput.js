@@ -212,28 +212,38 @@ const QuickInputView = (() => {
     }
     const status = document.getElementById('q-ocr-status');
     const show = (t) => { if (status) { status.style.display = 'block'; status.textContent = t; } };
+    // OCR 语言模型 CDN 候选: 优先 jsDelivr 取本仓库压缩包, 回退官方 tessdata 默认源
+    const langPaths = [
+      'https://cdn.jsdelivr.net/gh/mt2ztg26n2-art/will-finance-app@master/vendor/tess/',
+      'https://tessdata.projectnaptha.com/4.0.0_fast/'
+    ];
     show(I18n.t('正在加载 OCR 引擎…'));
     ocrLoading = (async () => {
-      try {
-        const w = await window.Tesseract.createWorker('chi_sim', 1, {
-          workerPath: 'vendor/tess/worker.min.js?v=7',
-          corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
-          langPath: 'vendor/tess/',
-          gzip: false, // GitHub Pages 对 .gz 返回空体, 改用未压缩 .traineddata
-          logger: (m) => {
-            if (m.status === 'recognizing text') show(I18n.t('识别中… {p}%', { p: Math.round((m.progress || 0) * 100) }));
-            else if (m.status) show(I18n.t('OCR · {s}…', { s: m.status }));
-          },
-        });
-        ocrWorker = w;
-        show(I18n.t('OCR 引擎就绪'));
-        return w;
-      } catch (e) {
-        show(I18n.t('OCR 引擎加载失败: ') + e.message);
-        throw e;
-      } finally {
-        ocrLoading = null;
+      let w, lastErr;
+      for (const lp of langPaths) {
+        try {
+          w = await window.Tesseract.createWorker('chi_sim', 1, {
+            workerPath: 'vendor/tess/worker.min.js?v=7',
+            corePath: 'vendor/tess/tesseract-core-simd.wasm.js?v=7',
+            langPath: lp,
+            gzip: true, // 压缩模型, 下载更小更快
+            logger: (m) => {
+              if (m.status === 'recognizing text') show(I18n.t('识别中… {p}%', { p: Math.round((m.progress || 0) * 100) }));
+              else if (m.status) show(I18n.t('OCR · {s}…', { s: m.status }));
+            },
+          });
+          break;
+        } catch (e) { lastErr = e; }
       }
+      if (!w) {
+        show(I18n.t('OCR 引擎加载失败: ') + (lastErr && lastErr.message));
+        ocrLoading = null;
+        throw lastErr;
+      }
+      ocrWorker = w;
+      show(I18n.t('OCR 引擎就绪'));
+      ocrLoading = null;
+      return w;
     })();
     return ocrLoading;
   }
