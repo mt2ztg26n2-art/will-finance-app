@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#C7000B" />
+  <title>个人金融系统 · 学生财务 & 创业资金管理</title>
+
+  <!-- Icons -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23C7000B'%3E%3Cpath d='M3 4 H5 L9 20 L12 11 L15 20 L19 4 H21 L17 20 H7 Z'/%3E%3C/svg%3E" />
+
+  <!-- PWA: 可安装到 iOS / Android 主屏幕 -->
+  <link rel="manifest" href="manifest.webmanifest?v=50" />
+  <link rel="apple-touch-icon" href="assets/icon-192.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Will 财务" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css?v=50" />
+  <link rel="stylesheet" href="styles/views.css?v=50" />
+
+  <!-- Chart library — vendored locally so the app works fully offline (no CDN dependency) -->
+  <script src="vendor/chart.umd.js?v=50"></script>
+  <!-- Receipt generation libs (html2canvas + jsPDF) — vendored locally -->
+  <script src="vendor/html2canvas.min.js?v=50"></script>
+  <script src="vendor/jspdf.umd.min.js?v=50"></script>
+</head>
+<body>
+
+<!-- ====================== Login Screen ====================== -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-lang">
+    <div class="lang-seg" id="login-lang" title="切换语言 / Switch language">
+      <button type="button" class="lang-btn" data-lang="zh">中文</button>
+      <button type="button" class="lang-btn" data-lang="en">English</button>
+    </div>
+  </div>
+  <div class="login-split">
+
+    <!-- 左侧品牌面板 -->
+    <aside class="login-aside">
+      <div class="aside-brand">
+        <div class="aside-mark">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4 H5 L9 20 L12 11 L15 20 L19 4 H21 L17 20 H7 Z"/></svg>
+        </div>
+        <div class="aside-brand-meta">
+          <div class="aside-brand-name" data-i18n="个人金融系统">个人金融系统</div>
+          <div class="aside-brand-sub" data-i18n="学生财务 & 创业资金 · V2.0">学生财务 & 创业资金 · V2.0</div>
+        </div>
+      </div>
+
+      <div class="aside-headline">
+        <h1 class="aside-title" data-i18n-html="学生财务与<br/>创业资金管理">学生财务与<br/>创业资金管理</h1>
+        <p class="aside-tagline" data-i18n="一站式记录收支、规划预算、追踪教育与创业投入,让每一笔资金都有清晰去向。">一站式记录收支、规划预算、追踪教育与创业投入,让每一笔资金都有清晰去向。</p>
+      </div>
+
+      <ul class="aside-features">
+        <li>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+          </span>
+          <div class="feature-text">
+            <div class="feature-title" data-i18n="智能记账">智能记账</div>
+            <div class="feature-desc" data-i18n="语音或文字一句话入账,自动识别分类、金额与账户。">语音或文字一句话入账,自动识别分类、金额与账户。</div>
+          </div>
+        </li>
+        <li>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6"/></svg>
+          </span>
+          <div class="feature-text">
+            <div class="feature-title" data-i18n="预算与负债">预算与负债</div>
+            <div class="feature-desc" data-i18n="月度预算实时追踪,负债提醒避免逾期影响征信。">月度预算实时追踪,负债提醒避免逾期影响征信。</div>
+          </div>
+        </li>
+        <li>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          </span>
+          <div class="feature-text">
+            <div class="feature-title" data-i18n="数据中心">数据中心</div>
+            <div class="feature-desc" data-i18n="资产、收支、负债、现金流全景大屏,一屏全掌握。">资产、收支、负债、现金流全景大屏,一屏全掌握。</div>
+          </div>
+        </li>
+      </ul>
+
+      <!-- 金融装饰:柱状图 + 银行卡 + 硬币 + 上升趋势线 -->
+      <svg class="aside-deco" viewBox="0 0 400 320" fill="none" aria-hidden="true">
+        <!-- 上升柱状图(左下) -->
+        <g class="ad-bars">
+          <rect x="20"  y="230" width="26" height="60"  rx="4" fill="white" fill-opacity="0.16"/>
+          <rect x="56"  y="200" width="26" height="90"  rx="4" fill="white" fill-opacity="0.20"/>
+          <rect x="92"  y="160" width="26" height="130" rx="4" fill="white" fill-opacity="0.26"/>
+          <rect x="128" y="110" width="26" height="180" rx="4" fill="white" fill-opacity="0.34"/>
+        </g>
+        <!-- 上升趋势线 + 箭头 -->
+        <g class="ad-trend" stroke="white" stroke-opacity="0.75" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M30 210 L 80 170 L 130 130 L 180 90"/>
+          <path d="M180 90 l -10 -2 m 10 2 l -2 -10"/>
+        </g>
+        <!-- 银行卡(倾斜) -->
+        <g class="ad-card" transform="translate(200 130) rotate(-8)" stroke="white">
+          <rect x="0" y="0" width="170" height="100" rx="12" fill="white" fill-opacity="0.14" stroke-opacity="0.55" stroke-width="1.5"/>
+          <rect x="14" y="22" width="32" height="22" rx="3" fill="white" fill-opacity="0.32"/>
+          <line x1="14" y1="62" x2="140" y2="62" stroke-opacity="0.45" stroke-width="1.5"/>
+          <line x1="14" y1="76" x2="100" y2="76" stroke-opacity="0.30" stroke-width="1.5"/>
+          <line x1="120" y1="76" x2="156" y2="76" stroke-opacity="0.30" stroke-width="1.5"/>
+        </g>
+        <!-- ¥ 硬币(右上) -->
+        <g class="ad-coin" transform="translate(330 70)">
+          <circle cx="0" cy="0" r="34" fill="white" fill-opacity="0.16" stroke="white" stroke-opacity="0.55" stroke-width="1.5"/>
+          <circle cx="0" cy="0" r="26" fill="none" stroke="white" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="2 3"/>
+          <text x="0" y="8" text-anchor="middle" fill="white" fill-opacity="0.88" font-size="30" font-weight="800" font-family="'PingFang SC','Microsoft YaHei',serif">¥</text>
+        </g>
+        <!-- 小硬币(右下) -->
+        <g class="ad-coin2" transform="translate(350 250)">
+          <circle cx="0" cy="0" r="20" fill="white" fill-opacity="0.12" stroke="white" stroke-opacity="0.45" stroke-width="1.2"/>
+          <text x="0" y="6" text-anchor="middle" fill="white" fill-opacity="0.78" font-size="18" font-weight="800" font-family="'PingFang SC','Microsoft YaHei',serif">$</text>
+        </g>
+      </svg>
+    </aside>
+
+    <!-- 中央发丝分隔 -->
+    <div class="login-divider" aria-hidden="true"></div>
+
+    <!-- 右侧表单面板 -->
+    <section class="login-form-col">
+      <div class="login-tabs">
+        <button type="button" class="login-tab active" data-tab="login" data-i18n="登录">登录</button>
+        <button type="button" class="login-tab" data-tab="register" data-i18n="注册">注册</button>
+      </div>
+
+      <div class="login-headline">
+        <h2 class="login-h2" data-i18n="欢迎回来">欢迎回来</h2>
+        <p class="login-sub" data-i18n="请使用您的账号与密码登录">请使用您的账号与密码登录</p>
+      </div>
+
+      <form id="login-form" class="login-form active" autocomplete="off">
+        <div class="login-field">
+          <label for="login-username" data-i18n="账号">账号</label>
+          <input type="text" id="login-username" placeholder="请输入用户名" data-i18n-ph="请输入用户名" autocomplete="username" required />
+        </div>
+        <div class="login-field">
+          <label for="login-password" data-i18n="密码">密码</label>
+          <input type="password" id="login-password" placeholder="请输入密码" data-i18n-ph="请输入密码" autocomplete="current-password" required />
+        </div>
+        <div class="login-row">
+          <label class="login-check"><input type="checkbox" id="remember-me" checked /> <span data-i18n="记住我">记住我</span></label>
+          <a class="login-link" id="forgot-link" data-i18n="忘记密码?">忘记密码?</a>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" data-i18n="登 录">登 录</button>
+      </form>
+
+      <form id="register-form" class="login-form" autocomplete="off">
+        <div class="login-field">
+          <label for="reg-username" data-i18n="账号">账号</label>
+          <input type="text" id="reg-username" placeholder="设置您的用户名" data-i18n-ph="设置您的用户名" autocomplete="username" required />
+        </div>
+        <div class="login-field">
+          <label for="reg-password" data-i18n="密码">密码</label>
+          <input type="password" id="reg-password" placeholder="至少 8 位, 须含字母与数字" data-i18n-ph="至少 8 位, 须含字母与数字" autocomplete="new-password" required minlength="8" pattern="(?=.*[A-Za-z])(?=.*\d).{8,}" />
+        </div>
+        <div class="login-field">
+          <label for="reg-password-confirm" data-i18n="确认密码">确认密码</label>
+          <input type="password" id="reg-password-confirm" placeholder="再次输入密码" data-i18n-ph="再次输入密码" autocomplete="new-password" required minlength="8" pattern="(?=.*[A-Za-z])(?=.*\d).{8,}" />
+        </div>
+        <div class="login-field">
+          <label for="reg-security-q" data-i18n="密保问题(自定义)">密保问题(自定义)</label>
+          <input type="text" id="reg-security-q" class="input" placeholder="自己写一个问题, 用于找回密码" data-i18n-ph="自己写一个问题, 用于找回密码" autocomplete="off" maxlength="80" />
+          <label for="reg-security-a" data-i18n="密保答案">密保答案</label>
+          <input type="text" id="reg-security-a" placeholder="答案(不区分大小写)" data-i18n-ph="答案(不区分大小写)" autocomplete="off" maxlength="80" />
+          <p class="login-hint" data-i18n="忘记密码时通过此问题验证身份, 请牢记; 可留空但建议设置">忘记密码时通过此问题验证身份, 请牢记; 可留空但建议设置</p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" data-i18n="注 册">注 册</button>
+      </form>
+
+      <div id="login-error" class="login-error"></div>
+
+      <div class="login-tip" data-i18n="数据仅存储在本地浏览器,不上传任何服务器 · 请妥善保存您的账号与密码">
+        数据仅存储在本地浏览器,不上传任何服务器 · 请妥善保存您的账号与密码
+      </div>
+
+      <div class="login-tools">
+        <button type="button" class="login-tool" id="login-import-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i18n="导入数据备份">导入数据备份</span>
+        </button>
+        <input type="file" id="login-import-file" accept="application/json,.json" hidden />
+        <button type="button" class="login-tool ghost" id="login-sync-info-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span data-i18n="数据怎么跨设备同步?">数据怎么跨设备同步?</span>
+        </button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ====================== App Shell ====================== -->
+<div id="app" class="app hidden">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4 H5 L9 20 L12 11 L15 20 L19 4 H21 L17 20 H7 Z"/></svg>
+      </div>
+      <div>
+        <h1 data-i18n="个人金融系统">个人金融系统</h1>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-route="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span data-i18n="总控面板">总控面板</span>
+      </a>
+
+      <div class="nav-group">
+        <div class="nav-group-head" data-group="book">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4z"/><path d="M8 8h9M8 12h9"/></svg>
+          <span data-i18n="记账">记账</span>
+          <svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-group-body">
+          <a class="nav-item" data-route="quickInput">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            <span data-i18n="智能记账">智能记账</span>
+          </a>
+          <a class="nav-item" data-route="transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+            <span data-i18n="交易记录">交易记录</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-head" data-group="asset">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v11H3z"/><path d="M16 12h.01"/><path d="M3 10h18"/></svg>
+          <span data-i18n="资产">资产</span>
+          <svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-group-body">
+          <a class="nav-item" data-route="accounts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 12a2 2 0 0 0-2-2h-4a2 2 0 0 0 0 4h4a2 2 0 0 0 2-2Z"/></svg>
+            <span data-i18n="账户管理">账户管理</span>
+          </a>
+          <a class="nav-item" data-route="pots">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l-1.5 4.5h19L19 14z"/><path d="M12 8v4"/><path d="M10 10h4"/></svg>
+            <span data-i18n="存钱罐">存钱罐</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-head" data-group="plan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/></svg>
+          <span data-i18n="规划">规划</span>
+          <svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-group-body">
+          <a class="nav-item" data-route="budgets">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6"/></svg>
+            <span data-i18n="预算管理">预算管理</span>
+          </a>
+          <a class="nav-item" data-route="monthlyReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13v4M12 11v6M15 14v3"/></svg>
+            <span data-i18n="月度复盘">月度复盘</span>
+          </a>
+          <a class="nav-item" data-route="yearlyReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
+            <span data-i18n="年度复盘">年度复盘</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-head" data-group="topic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="M2 13l10 5 10-5"/><path d="M2 18l10 5 10-5"/></svg>
+          <span data-i18n="专题">专题</span>
+          <svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-group-body">
+          <a class="nav-item" data-route="education">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 2.5 3 6 3s6-2 6-3v-5"/></svg>
+            <span data-i18n="教育投资">教育投资</span>
+          </a>
+          <a class="nav-item" data-route="entrepreneurship">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span data-i18n="创业看板">创业看板</span>
+          </a>
+          <a class="nav-item" data-route="liabilities">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span data-i18n="负债管理">负债管理</span>
+            <em id="debt-badge" class="nav-badge hidden">!</em>
+          </a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-head" data-group="analysis">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="10" width="3.5" height="8" rx="1"/><rect x="10.25" y="5" width="3.5" height="13" rx="1"/><rect x="15.5" y="13" width="3.5" height="5" rx="1"/></svg>
+          <span data-i18n="分析">分析</span>
+          <svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-group-body">
+          <a class="nav-item" data-route="flow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            <span data-i18n="资金流向">资金流向</span>
+          </a>
+          <a class="nav-item" data-route="datacenter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="10" width="3.5" height="8" rx="1"/><rect x="10.25" y="5" width="3.5" height="13" rx="1"/><rect x="15.5" y="13" width="3.5" height="5" rx="1"/></svg>
+            <span data-i18n="数据中心">数据中心</span>
+          </a>
+          <a class="nav-item" data-route="regionHeatmap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span data-i18n="区域热力图">区域热力图</span>
+          </a>
+        </div>
+      </div>
+
+      <a class="nav-item" data-route="notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span data-i18n="通知中心">通知中心</span>
+        <em id="notif-badge" class="nav-badge hidden">0</em>
+      </a>
+      <a class="nav-item" data-route="audit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span data-i18n="痕迹日志">痕迹日志</span>
+      </a>
+      <a class="nav-item" data-route="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span data-i18n="设置">设置</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-meta">
+          <div class="user-name" id="user-name">用户名</div>
+          <div class="user-tier" data-i18n="创业者">创业者</div>
+        </div>
+        <button id="logout-btn" class="user-logout" title="退出登录">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn sidebar-toggle" title="折叠侧栏">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="page-title-wrap">
+          <h2 id="page-title">总控面板</h2>
+        </div>
+        <div class="topbar-summary" id="topbar-summary">
+          <div class="ts-item"><span class="ts-label" data-i18n="总资产">总资产</span><span class="ts-value" id="ts-assets">—</span></div>
+          <div class="ts-divider"></div>
+          <div class="ts-item"><span class="ts-label" data-i18n="净资产">净资产</span><span class="ts-value" id="ts-net">—</span></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="global-search" placeholder="搜索交易、账户、对方…" data-i18n-ph="搜索交易、账户、对方…" />
+          <kbd>⌘K</kbd>
+        </div>
+        <button class="icon-btn" id="quick-add-btn" title="快速记账 (N)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="icon-btn icon-btn-bell" id="notif-bell" title="通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notif-bell-badge" class="badge-dot hidden">0</span>
+        </button>
+        <button class="icon-btn" id="install-app-btn" title="安装到手机" aria-label="安装到手机">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        </button>
+        <div class="sync-control" id="sync-control" title="云端同步">
+          <button type="button" class="icon-btn sync-btn" id="sync-btn" title="立即同步">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span class="sync-dot" id="sync-dot"></span>
+          </button>
+          <span class="sync-text" id="sync-text" data-i18n="已同步">已同步</span>
+        </div>
+
+        <div class="lang-seg lang-seg-top" id="topbar-lang" title="切换语言 / Switch language">
+          <button type="button" class="lang-btn" data-lang="zh">中文</button>
+          <button type="button" class="lang-btn" data-lang="en">English</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="view" class="view"></div>
+
+    <footer class="footer">
+      <span>个人金融系统 © 2026 · V2.0 · 本地存储 · 数据完全可控</span>
+      <span class="footer-dot">·</span>
+      <span id="footer-time">--:--:--</span>
+      <span class="footer-dot">·</span>
+      <span>v1.0.0</span>
+    </footer>
+  </main>
+</div>
+
+<!-- ====================== Modal Container ====================== -->
+<div id="modal-root"></div>
+
+<!-- ====================== Toast Container ====================== -->
+<div id="toast-root" class="toast-root"></div>
+
+<!-- ====================== Scripts ====================== -->
+<script src="js/utils.js?v=50"></script>
+<script src="js/sync.config.js?v=50"></script>
+<script src="js/i18n.js?v=50"></script>
+<script src="js/data.js?v=50"></script>
+<script src="js/parsers.js?v=50"></script>
+<script src="js/auth.js?v=50"></script>
+<script src="js/router.js?v=50"></script>
+
+<script src="js/views/dashboard.js?v=50"></script>
+<script src="js/views/quickInput.js?v=50"></script>
+<script src="js/views/transactions.js?v=50"></script>
+<script src="js/views/accounts.js?v=50"></script>
+<script src="js/views/budgets.js?v=50"></script>
+<script src="js/views/monthlyReport.js?v=50"></script>
+<script src="js/views/education.js?v=50"></script>
+<script src="js/views/entrepreneurship.js?v=50"></script>
+<script src="js/views/liabilities.js?v=50"></script>
+<script src="js/views/flow.js?v=50"></script>
+<script src="js/views/datacenter.js?v=50"></script>
+<script src="js/views/regionHeatmap.js?v=50"></script>
+<script src="js/views/notifications.js?v=50"></script>
+  <script src="js/views/settings.js?v=50"></script>
+  <script src="js/views/pots.js?v=50"></script>
+  <script src="js/views/audit.js?v=50"></script>
+  <script src="js/views/yearlyReport.js?v=50"></script>
+
+  <script src="js/regionData.js?v=50"></script>
+  <script src="js/regionPicker.js?v=50"></script>
+  <script src="js/mapPicker.js?v=50"></script>
+  <script src="js/receipt.js?v=50"></script>
+
+  <script src="js/sync.js?v=50"></script>
+  <script src="js/app.js?v=50"></script>
+
+  <!-- 安装到手机横幅(Android 可点"安装", iOS 给出引导) -->
+  <div id="install-banner" class="install-banner hidden">
+    <div class="install-banner-ico">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 4 H5 L9 20 L12 11 L15 20 L19 4 H21 L17 20 H7 Z"/></svg>
+    </div>
+    <div class="install-banner-text">
+      <div class="install-banner-title" data-i18n="安装到手机">安装到手机</div>
+      <div class="install-banner-sub" id="install-banner-sub" data-i18n="添加到主屏幕,像 App 一样随时记账">添加到主屏幕, 像 App 一样随时记账</div>
+    </div>
+    <button class="btn btn-primary install-banner-btn" id="install-banner-btn" data-i18n="安装">安装</button>
+    <button class="install-banner-x" id="install-banner-x" title="关闭" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- 注册 Service Worker: 离线可用 + 可安装 -->
+  <script>
+    (function () {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('service-worker.js?v=50').catch(function (e) {
+            /* 注册失败不影响主功能 */
+          });
+        });
+      }
+    })();
+  </script>
+
+</body>
+</html>

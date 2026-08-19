@@ -1,0 +1,16 @@
+{
+  "name": "个人金融系统",
+  "short_name": "Will 财务",
+  "description": "学生财务与创业资金管理 · 银行级多账户记账",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f4f9",
+  "theme_color": "#0f5132",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
