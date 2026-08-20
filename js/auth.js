@@ -61,6 +61,8 @@ const Auth = (() => {
       return { ok: false, error: '密码错误' };
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify({ username, remember: true }));
+    // 所有账号都预置基础分类树(不限于演示账号), 否则"新增交易"分类级联为空、不可用
+    if (Data.getCategories().length === 0) Data.seedBaseCategories();
     // 仅演示账号且数据为空时预置演示数据; 其它账号各自从空白开始, 互不复制
     if (username === DEMO_USER && data.accounts.length === 0 && data.transactions.length === 0) {
       Data.seedDemoData();
@@ -85,6 +87,8 @@ const Auth = (() => {
     data.users[username] = u;
     Data.save();
     localStorage.setItem(SESSION_KEY, JSON.stringify({ username, remember: true }));
+    // 所有账号都预置基础分类树(不限于演示账号), 否则"新增交易"分类级联为空、不可用
+    if (Data.getCategories().length === 0) Data.seedBaseCategories();
     // 仅演示账号预置演示数据; 其它账户留白, 各自记录自己的财务数据
     if (username === DEMO_USER) Data.seedDemoData();
     return { ok: true };
