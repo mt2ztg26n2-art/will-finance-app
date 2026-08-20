@@ -184,7 +184,7 @@ const TransactionsView = (() => {
     const amount = parsed?.amount || '';
     const accountId = parsed?.account?.id || accounts.find(a => a.type !== 'liability')?.id || '';
     const toAccountId = parsed?.toAccount?.id || accounts.find(a => a.type === 'business')?.id || accounts[1]?.id || '';
-    const categoryId = parsed?.category?.id || (type === 'income' ? _firstLeafByType('income') : _firstLeafByType('expense')) || '';
+    const categoryId = parsed?.category?.id || (type === 'income' ? _firstLeafByType('income') : _firstLeafByType('expense'))?.id || '';
     const payee = parsed?.payee || '';
     const location = parsed?.location || '';
     const description = parsed?.description || '';
@@ -207,7 +207,7 @@ const TransactionsView = (() => {
             <span class="cat-cascader-value">${I18n.t('请选择分类')}</span>
             <span class="cat-cascader-caret">${Util.icon('chevron-down')}</span>
           </button>
-          <div class="cat-cascader-pop" id="m-cat-pop" hidden></div>
+          <div class="cat-cascader-pop" id="m-cat-pop"></div>
         </div>
       </div>
 
@@ -284,16 +284,20 @@ const TransactionsView = (() => {
       function f(ns) { return ns.filter(n => n.type === t).map(n => Object.assign({}, n, { children: f(n.children) })); }
       return f(Data.getCategoryTree());
     }
+    const catCascader = document.getElementById('m-cat-cascader');
     function renderCascader() {
       const trigger = document.getElementById('m-cat-trigger');
       const valueEl = trigger.querySelector('.cat-cascader-value');
       if (curCat) { valueEl.textContent = Data.getCategoryBreadcrumb(curCat, ' / '); trigger.classList.add('filled'); }
       else { valueEl.textContent = I18n.t('请选择分类'); trigger.classList.remove('filled'); }
       const pop = document.getElementById('m-cat-pop');
-      if (pop.hidden) return;
+      if (!pop.classList.contains('open')) return;
       const tree = treeOfType(curType);
       const byId = {};
       (function idx(ns) { ns.forEach(n => { byId[n.id] = n; if (n.children) idx(n.children); }); })(tree);
+      // 面包屑导航条(可点返回上一级)
+      const crumbs = navStack.map(id => byId[id]).filter(Boolean).map((n, i) => `<span class="cat-crumb" data-i="${i}">${Util.escapeHtml(n.name)}</span>`);
+      const crumbBar = `<div class="cat-crumb-bar">${navStack.length ? crumbs.join('<span class="cat-crumb-sep">›</span>') : '<span class="cat-crumb cat-crumb-root">选择分类</span>'}</div>`;
       // 构建各列(大类 → 子类 → 小类)
       const cols = [];
       let level = tree;
@@ -307,7 +311,7 @@ const TransactionsView = (() => {
         const node = navStack[i] ? byId[navStack[i]] : null;
         if (!node || !(node.children && node.children.length)) break;
       }
-      pop.innerHTML = cols.map((col, ci) => `
+      pop.innerHTML = crumbBar + '<div class="cat-cols">' + cols.map((col, ci) => `
         <div class="cat-col" data-col="${ci}">
           ${col.map(c => {
             const hasKids = c.children && c.children.length;
@@ -317,7 +321,15 @@ const TransactionsView = (() => {
               ${hasKids ? '<span class="cat-opt-caret">' + Util.icon('chevron-right') + '</span>' : ''}
             </div>`;
           }).join('')}
-        </div>`).join('');
+        </div>`).join('') + '</div>';
+      // 面包屑点击 → 上钻
+      Util.$$('.cat-crumb', pop).forEach(cr => cr.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (cr.classList.contains('cat-crumb-root')) return;
+        const i = parseInt(cr.dataset.i, 10);
+        navStack = navStack.slice(0, i);
+        renderCascader();
+      }));
       Util.$$('.cat-opt', pop).forEach(opt => opt.addEventListener('click', (e) => {
         e.stopPropagation();
         const cid = opt.dataset.cid;
@@ -339,30 +351,36 @@ const TransactionsView = (() => {
     function onScrollResize() { closeCascader(); }
     function openCascader() {
       // Portal 到 body,避免被 .modal / .modal-body 的 overflow:hidden 裁剪
-      if (pop.parentElement !== document.body) document.body.appendChild(pop);
+      if (pop.parentElement !== catCascader) catCascader.appendChild(pop);
       const rect = catTrigger.getBoundingClientRect();
       pop.style.position = 'fixed';
       pop.style.top = (rect.bottom + 6) + 'px';
       pop.style.left = rect.left + 'px';
       pop.style.minWidth = Math.max(rect.width, 132) + 'px';
       pop.style.zIndex = '1100';
-      pop.hidden = false;
+      pop.classList.add('open');
+      catTrigger.setAttribute('aria-expanded', 'true');
       renderCascader();
     }
     function closeCascader() {
-      pop.hidden = true;
+      pop.classList.remove('open');
       pop.style.position = ''; pop.style.top = ''; pop.style.left = ''; pop.style.minWidth = ''; pop.style.zIndex = '';
+      catTrigger.setAttribute('aria-expanded', 'false');
+      if (pop.parentElement === document.body) catCascader.appendChild(pop); // 移回容器, 避免 body 孤儿节点堆积
       document.removeEventListener('scroll', onScrollResize, true);
       window.removeEventListener('resize', onScrollResize);
     }
     catTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (pop.hidden) { openCascader(); document.addEventListener('scroll', onScrollResize, true); window.addEventListener('resize', onScrollResize); }
-      else closeCascader();
+      if (!pop.classList.contains('open')) {
+        openCascader();
+        document.addEventListener('scroll', onScrollResize, true);
+        window.addEventListener('resize', onScrollResize);
+      } else closeCascader();
     });
     document.addEventListener('click', (e) => {
       // pop 已 portal 到 body,需同时判定 trigger 和 pop
-      if (!pop.hidden && !catTrigger.contains(e.target) && !pop.contains(e.target)) closeCascader();
+      if (pop.classList.contains('open') && !catTrigger.contains(e.target) && !pop.contains(e.target)) closeCascader();
     });
     renderCascader();
 
@@ -374,6 +392,7 @@ const TransactionsView = (() => {
       document.getElementById('m-to-acc-wrap').style.display = curType === 'transfer' ? 'block' : 'none';
       document.getElementById('m-cat-wrap').style.display = curType === 'transfer' ? 'none' : 'block';
       document.getElementById('m-acc-label').textContent = curType === 'transfer' ? I18n.t('转出账户') : I18n.t('账户');
+      closeCascader();
       navStack = [];
       const firstLeaf = Data.getLeafCategories(curType)[0];
       curCat = firstLeaf ? firstLeaf.id : '';
@@ -399,6 +418,7 @@ const TransactionsView = (() => {
     setTimeout(() => { const a = document.getElementById('m-amount'); if (a) a.focus(); }, 60);
 
     document.getElementById('m-save-btn').addEventListener('click', () => {
+      closeCascader(); // 存档前先关闭级联浮层, 撤销 scroll/resize 监听, 避免弹窗残留
       const amountVal = parseFloat(document.getElementById('m-amount').value);
       if (isNaN(amountVal) || amountVal <= 0) { Util.toast(I18n.t('请输入有效金额'), 'warn'); return; }
       const accId = document.getElementById('m-account').value;
