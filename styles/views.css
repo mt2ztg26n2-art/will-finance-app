@@ -793,13 +793,24 @@
 .cat-cascader-trigger[aria-expanded="true"] .cat-cascader-caret { transform: rotate(180deg); }
 
 .cat-cascader-pop {
+  display: none;                 /* 默认隐藏, 用 .open 切换 —— 彻底绕开 [hidden]/display:flex 陷阱 */
   position: fixed; z-index: 1100;
-  display: flex; gap: 0; max-height: 320px;
+  flex-direction: column; gap: 0; max-height: 340px;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
   box-shadow: var(--shadow-3); overflow: hidden; padding: 4px;
-  animation: cascIn .12s ease;
 }
+.cat-cascader-pop.open { display: flex; animation: cascIn .12s ease; }
 @keyframes cascIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.cat-crumb-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+  padding: 6px 8px; margin: 0 2px 2px; font-size: 12px; color: var(--text-3);
+  border-bottom: 1px solid var(--border); background: var(--bg); border-radius: var(--r-xs);
+}
+.cat-crumb { cursor: pointer; padding: 2px 4px; border-radius: var(--r-xs); transition: background .12s, color .12s; }
+.cat-crumb:hover { background: var(--brand-soft); color: var(--brand); }
+.cat-crumb-root { cursor: default; color: var(--text-3); font-weight: 600; }
+.cat-crumb-sep { color: var(--text-3); opacity: .6; }
+.cat-cols { display: flex; flex-direction: row; }
 .cat-col {
   min-width: 132px; max-width: 160px; overflow-y: auto;
   border-right: 1px solid var(--border); padding: 2px;
