@@ -143,6 +143,11 @@ input, button, textarea, select { font-family: inherit; font-size: inherit; colo
 
 .hidden { display: none !important; }
 
+/* 关键修复: 作者样式表里的 display:flex/grid 会覆盖浏览器默认的 [hidden]{display:none},
+   导致依赖 hidden 属性切换显隐的弹层(如分类级联 .cat-cascader-pop)永远可见并遮挡点击。
+   显式提升 [hidden] 优先级, 让 hidden 属性始终生效。 */
+[hidden] { display: none !important; }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(22, 119, 255, .22); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
