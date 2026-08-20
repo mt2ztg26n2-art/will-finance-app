@@ -1,7 +1,7 @@
 /* 个人金融系统 — Service Worker
    离线可用 + 可安装到 iOS / Android 主屏幕。
    策略: 导航请求网络优先(始终拿到最新 HTML), 其它同源资源缓存优先并后台更新。 */
-const CACHE = 'will-finance-sw-v22';
+const CACHE = 'will-finance-sw-v23';
 const ASSETS = [
   './',
   './index.html',
