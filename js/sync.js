@@ -319,7 +319,8 @@ const Sync = (() => {
     }
   }
 
-  async function syncNow() {
+  async function syncNow(opts) {
+    opts = opts || {};
     if (!enabled()) { setStatus('disabled'); return; }
     if (!username || syncing || rateLimited()) return;
     syncing = true;
@@ -337,7 +338,19 @@ const Sync = (() => {
         }
       }
       await push();
-      if (emailConfirmBlocked) { setStatus('blocked'); maybeWarnBlocked(); return; }
+      if (emailConfirmBlocked) {
+        // 幽灵账号自愈: 普通登录 / 定时同步时若撞到"未确认幽灵账号"(创建时 Supabase
+        // Confirm email 未关), 自动换 +vN 命名空间重建已确认云端账号, 无需用户手动点
+        // "重新连接"。否则第二台设备(只做常规登录)会永远卡在旧幽灵邮箱上, 与已切到
+        // +vN 的设备分处不同云端账号 -> 跨设备永远不同步。
+        if (blockedReason === 'ghost_account' && !opts._bumped) {
+          bumpCloudEmail();
+          resetCloud();
+          syncing = false;
+          return syncNow({ _bumped: true });
+        }
+        setStatus('blocked'); maybeWarnBlocked(); return;
+      }
       setStatus('synced');
     } catch (e) {
       if (e && /rate_limit/.test(String(e.message))) { hitBackoff(); setStatus('offline'); }
