@@ -10,7 +10,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23C7000B'%3E%3Cpath d='M3 4 H5 L9 20 L12 11 L15 20 L19 4 H21 L17 20 H7 Z'/%3E%3C/svg%3E" />
 
   <!-- PWA: 可安装到 iOS / Android 主屏幕 -->
-  <link rel="manifest" href="manifest.webmanifest?v=56" />
+  <link rel="manifest" href="manifest.webmanifest?v=57" />
   <link rel="apple-touch-icon" href="assets/icon-192.svg" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -23,14 +23,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="styles/main.css?v=56" />
-  <link rel="stylesheet" href="styles/views.css?v=56" />
+  <link rel="stylesheet" href="styles/main.css?v=57" />
+  <link rel="stylesheet" href="styles/views.css?v=57" />
 
   <!-- Chart library — vendored locally so the app works fully offline (no CDN dependency) -->
-  <script src="vendor/chart.umd.js?v=56"></script>
+  <script src="vendor/chart.umd.js?v=57"></script>
   <!-- Receipt generation libs (html2canvas + jsPDF) — vendored locally -->
-  <script src="vendor/html2canvas.min.js?v=56"></script>
-  <script src="vendor/jspdf.umd.min.js?v=56"></script>
+  <script src="vendor/html2canvas.min.js?v=57"></script>
+  <script src="vendor/jspdf.umd.min.js?v=57"></script>
 </head>
 <body>
 
@@ -421,39 +421,39 @@
 <div id="toast-root" class="toast-root"></div>
 
 <!-- ====================== Scripts ====================== -->
-<script src="js/utils.js?v=56"></script>
-<script src="js/sync.config.js?v=56"></script>
-<script src="js/i18n.js?v=56"></script>
-<script src="js/data.js?v=56"></script>
-<script src="js/parsers.js?v=56"></script>
-<script src="js/auth.js?v=56"></script>
-<script src="js/router.js?v=56"></script>
+<script src="js/utils.js?v=57"></script>
+<script src="js/sync.config.js?v=57"></script>
+<script src="js/i18n.js?v=57"></script>
+<script src="js/data.js?v=57"></script>
+<script src="js/parsers.js?v=57"></script>
+<script src="js/auth.js?v=57"></script>
+<script src="js/router.js?v=57"></script>
 
-<script src="js/views/dashboard.js?v=56"></script>
-<script src="js/views/quickInput.js?v=56"></script>
-<script src="js/views/transactions.js?v=56"></script>
-<script src="js/views/accounts.js?v=56"></script>
-<script src="js/views/budgets.js?v=56"></script>
-<script src="js/views/monthlyReport.js?v=56"></script>
-<script src="js/views/education.js?v=56"></script>
-<script src="js/views/entrepreneurship.js?v=56"></script>
-<script src="js/views/liabilities.js?v=56"></script>
-<script src="js/views/flow.js?v=56"></script>
-<script src="js/views/datacenter.js?v=56"></script>
-<script src="js/views/regionHeatmap.js?v=56"></script>
-<script src="js/views/notifications.js?v=56"></script>
-  <script src="js/views/settings.js?v=56"></script>
-  <script src="js/views/pots.js?v=56"></script>
-  <script src="js/views/audit.js?v=56"></script>
-  <script src="js/views/yearlyReport.js?v=56"></script>
+<script src="js/views/dashboard.js?v=57"></script>
+<script src="js/views/quickInput.js?v=57"></script>
+<script src="js/views/transactions.js?v=57"></script>
+<script src="js/views/accounts.js?v=57"></script>
+<script src="js/views/budgets.js?v=57"></script>
+<script src="js/views/monthlyReport.js?v=57"></script>
+<script src="js/views/education.js?v=57"></script>
+<script src="js/views/entrepreneurship.js?v=57"></script>
+<script src="js/views/liabilities.js?v=57"></script>
+<script src="js/views/flow.js?v=57"></script>
+<script src="js/views/datacenter.js?v=57"></script>
+<script src="js/views/regionHeatmap.js?v=57"></script>
+<script src="js/views/notifications.js?v=57"></script>
+  <script src="js/views/settings.js?v=57"></script>
+  <script src="js/views/pots.js?v=57"></script>
+  <script src="js/views/audit.js?v=57"></script>
+  <script src="js/views/yearlyReport.js?v=57"></script>
 
-  <script src="js/regionData.js?v=56"></script>
-  <script src="js/regionPicker.js?v=56"></script>
-  <script src="js/mapPicker.js?v=56"></script>
-  <script src="js/receipt.js?v=56"></script>
+  <script src="js/regionData.js?v=57"></script>
+  <script src="js/regionPicker.js?v=57"></script>
+  <script src="js/mapPicker.js?v=57"></script>
+  <script src="js/receipt.js?v=57"></script>
 
-  <script src="js/sync.js?v=56"></script>
-  <script src="js/app.js?v=56"></script>
+  <script src="js/sync.js?v=57"></script>
+  <script src="js/app.js?v=57"></script>
 
   <!-- 安装到手机横幅(Android 可点"安装", iOS 给出引导) -->
   <div id="install-banner" class="install-banner hidden">
@@ -499,6 +499,54 @@
           });
         });
       }
+    })();
+
+    <!-- 兜底 v57: 即使旧 Service Worker 把坏代码钉死, 也确保分类触发器/账户下拉可点
+         用 capture + 委托监听 #m-cat-trigger / #m-account, 直接调 openCascader / .click() -->
+    <script>
+    (function () {
+      function ensureCat() {
+        var trig = document.getElementById('m-cat-trigger');
+        var pop = document.getElementById('m-cat-pop');
+        if (!trig || !pop) return;
+        if (trig.__catFixed) return;
+        trig.__catFixed = true;
+        // 先用 capture 抢事件, 直接操作 hidden 属性
+        trig.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (pop.hidden) {
+            // 触发原 click 链(openCascader 仍会跑, 我们只是保险)
+            pop.hidden = false;
+            var r = trig.getBoundingClientRect();
+            pop.style.position = 'fixed';
+            pop.style.top = (r.bottom + 6) + 'px';
+            pop.style.left = r.left + 'px';
+            pop.style.minWidth = Math.max(r.width, 132) + 'px';
+            pop.style.zIndex = '1100';
+            if (pop.parentElement !== document.body) document.body.appendChild(pop);
+          } else {
+            pop.hidden = true;
+          }
+        }, true);
+      }
+      function ensureAcc() {
+        var acc = document.getElementById('m-account');
+        if (!acc || acc.__accFixed) return;
+        acc.__accFixed = true;
+        // 防止意外被遮罩拦截, 提高 z-index
+        acc.style.position = 'relative';
+        acc.style.zIndex = '1200';
+      }
+      // 每次模态打开后重新绑定
+      var obs = new MutationObserver(function () {
+        if (document.getElementById('tx-modal')) {
+          ensureCat(); ensureAcc();
+        }
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      // 启动时也试一次
+      setTimeout(function () { ensureCat(); ensureAcc(); }, 500);
+      setTimeout(function () { ensureCat(); ensureAcc(); }, 2000);
     })();
   </script>
 
