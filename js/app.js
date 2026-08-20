@@ -42,10 +42,12 @@
     const m = map[s] || map.idle;
     dot.className = 'sync-dot sync-dot-' + m[0];
     txt.textContent = m[1];
+    const cloud = (window.Sync && Sync.getCloudEmail) ? Sync.getCloudEmail() : '';
+    if (cloud && (s === 'synced' || s === 'syncing' || s === 'idle')) txt.textContent = m[1] + ' · ' + cloud;
     txt.style.display = (s === 'disabled') ? 'none' : '';
-    if (btn) btn.title = (s === 'blocked')
+    if (btn) btn.title = (cloud ? (I18n.t('云端账号: ') + cloud + '\n') : '') + ((s === 'blocked')
       ? I18n.t('云端同步被拦截, 点此查看原因与修复')
-      : (s === 'offline') ? I18n.t('云端连接失败,请检查网络') : I18n.t('立即同步');
+      : (s === 'offline') ? I18n.t('云端连接失败,请检查网络') : I18n.t('立即同步'));
   }
   function setupSyncUI() {
     if (!syncUIReady) {
@@ -78,6 +80,7 @@
           <p>${I18n.t('你的云端账号(<b>%USER%</b>)是在 Supabase「Confirm email」开启时创建的, 关掉开关不会追溯确认它, 所以登不进去也传不上数据。本机数据完全不受影响。').replace('%USER%', userHtml)}</p>
           <p>${I18n.t('点下方"重新连接云端账号" — App 会自动换一个全新的云端邮箱命名空间(无需你去 Supabase 删账号), 重建一个已确认的云端账号, 然后立刻把你本机的数据上传过去, 跨设备同步即可恢复。')}</p>
           <p class="sh-note">${I18n.t('原理: 云端邮箱自动改成 username+v1@sync.will.app(原邮箱被旧幽灵账号占着), 多台设备会自动跟着切换到新邮箱; 旧邮箱下的云端数据会被自然放弃, 本机数据是源。')}</p>
+          <p class="sh-note sh-cross">${I18n.t('跨设备排查: 两台设备顶栏显示的"云端账号"必须完全相同(含 +vN)。若不同, 说明两端用的用户名/密码不一致 — 请在两台设备都退出登录, 再用完全相同的用户名+密码重新登录, 即可汇入同一云端账号。')}</p>
         </div>`;
     } else {
       bodyHtml = `
@@ -85,6 +88,7 @@
           <p class="sh-lead"><b>${I18n.t('Supabase「Confirm email」仍是开启状态')}</b></p>
           <p>${I18n.t('请到 Supabase 控制台 Authentication → Providers → Email 关闭「Confirm email」, 然后点"重新连接云端账号"。')}</p>
           <p class="sh-note">${I18n.t('关闭后, 新注册会自动确认, 同步即可恢复。')}</p>
+          <p class="sh-note sh-cross">${I18n.t('跨设备排查: 两台设备顶栏显示的"云端账号"必须完全相同(含 +vN)。若不同, 说明两端用的用户名/密码不一致 — 请在两台设备都退出登录, 再用完全相同的用户名+密码重新登录, 即可汇入同一云端账号。')}</p>
         </div>`;
     }
     const ok = await Util.modal({
