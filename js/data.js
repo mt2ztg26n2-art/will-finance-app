@@ -636,14 +636,11 @@ const Data = (() => {
     save();
   }
 
-  function seedDemoData() {
-    const now = Date.now();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    // 分类(三级:大类 → 子类 → 小类)。top 节点带 group 键,子节点继承其 group 与 type。
+  // 基础分类树(三级:大类→子类→小类)。这是应用的分类体系, 所有账号都应有, 而非仅演示账号。
+  let _baseCatIdByName = {};
+  function seedBaseCategories() {
     const cats = [];
-    const catIdByName = {};
+    _baseCatIdByName = {};
     function seedCat(spec, parent, ctx) {
       const id = Util.uid();
       const node = {
@@ -656,7 +653,7 @@ const Data = (() => {
         parent: parent || null,
       };
       cats.push(node);
-      catIdByName[spec.name] = id;
+      _baseCatIdByName[spec.name] = id;
       if (spec.children) spec.children.forEach(ch => seedCat(ch, id, { icon: node.icon, type: node.type, color: node.color, group: node.category }));
       return id;
     }
@@ -756,6 +753,17 @@ const Data = (() => {
       ]},
     ].forEach(s => seedCat(s, null, null));
     cache.categories = cats;
+    save();
+  }
+
+  function seedDemoData() {
+    const now = Date.now();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // 分类(复用基础分类树, 所有账号通用)
+    seedBaseCategories();
+    const cats = cache.categories;
 
     // 账户
     const accounts = [
@@ -822,7 +830,7 @@ const Data = (() => {
     ];
     const loc = () => pick(LOC_POOL);
 
-    const C = (name) => catIdByName[name];  // 取叶子分类 id
+    const C = (name) => _baseCatIdByName[name];  // 取叶子分类 id
 
     const incomeFamily = C('父母生活费');
     const incomeBiz = C('创业收入');
@@ -986,6 +994,6 @@ const Data = (() => {
     getRules, getRule, addRule, updateRule, deleteRule, runRules,
     log, getLogs, clearLogs,
     exportAll, importAll,
-    seedDemoData,
+    seedDemoData, seedBaseCategories,
   };
 })();
