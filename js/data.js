@@ -629,10 +629,16 @@ const Data = (() => {
   }
   function importAll(jsonStr) {
     const data = JSON.parse(jsonStr);
+    // 保护本地已存在的分类树: 云端若 categories 为空(旧账号/未同步/拉取异常),
+    // 不应覆盖本地刚 seed 出来的 93 个基础分类, 否则"分类不可用"复发
+    const prevCats = (cache.categories || []);
     cache = { ...emptyData(), ...data };
     cache.pots = cache.pots || [];
     cache.rules = cache.rules || [];
     cache.logs = cache.logs || [];
+    if ((!cache.categories || !cache.categories.length) && prevCats.length) {
+      cache.categories = prevCats;
+    }
     save();
   }
 
