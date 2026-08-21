@@ -400,6 +400,8 @@ svg { flex-shrink: 0; }
 .app[data-collapsed="true"] .nav-section,
 .app[data-collapsed="true"] .nav-badge,
 .app[data-collapsed="true"] .user-meta { display: none; }
+/* 收起时藏掉超长的同步状态文本, 给 topbar 标题让出空间, 防止被挤竖排 */
+.app[data-collapsed="true"] .sync-text { display: none; }
 
 .sidebar-nav { flex: 1; padding: 11px 9px; overflow-y: auto; }
 .nav-section { font-size: 10.5px; color: rgba(255, 255, 255, .5); padding: 13px 12px 6px; letter-spacing: .6px; font-weight: 700; text-transform: uppercase; }
@@ -495,8 +497,8 @@ svg { flex-shrink: 0; }
 @keyframes syncPulse { 0% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: .35; transform: scale(.85); } }
 @media (max-width: 720px) { .sync-text { display: none !important; } .topbar-summary { display: none; } }
 
-.page-title-wrap { min-width: 0; }
-.page-title-wrap h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+.page-title-wrap { min-width: 0; overflow: hidden; }
+.page-title-wrap h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page-title-wrap p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-2); }
 /* 侧栏展开时顶部页面标题隐藏(避免与侧栏重复拥挤),仅折叠时显示 */
 .app:not([data-collapsed="true"]) .page-title-wrap { display: none; }
