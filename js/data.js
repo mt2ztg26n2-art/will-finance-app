@@ -68,12 +68,16 @@ const Data = (() => {
         cache.rules = cache.rules || [];
         cache.logs = cache.logs || [];
         cache.settings = cache.settings || {};
+        // 自愈: 升级前已注册且从未补过分类树的账号, 打开 App 即 seed (无需重新登录)
+        if (!cache.categories.length) seedBaseCategories();
         return cache;
       } catch (e) {
         console.error('数据加载失败', e);
       }
     }
     cache = emptyData();
+    // 全新命名空间也直接 seed, 跟 register/login 行为一致
+    seedBaseCategories();
     cache.meta.currentUser = uid;
     return cache;
   }
