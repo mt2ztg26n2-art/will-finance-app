@@ -70,6 +70,7 @@ const Data = (() => {
         cache.settings = cache.settings || {};
         // 自愈: 升级前已注册且从未补过分类树的账号, 打开 App 即 seed (无需重新登录)
         if (!cache.categories.length) seedBaseCategories();
+        else ensureCatTreeVersion();   // v1→v2 增量迁移(老账号): 扩充支出子类 + 全支"其他"
         return cache;
       } catch (e) {
         console.error('数据加载失败', e);
@@ -643,10 +644,73 @@ const Data = (() => {
     if ((!cache.categories || !cache.categories.length) && prevCats.length) {
       cache.categories = prevCats;
     }
+    ensureCatTreeVersion(); // 云端若是 v1 旧树, 本地增量升到 v2 并回写
     save();
   }
 
   // 基础分类树(三级:大类→子类→小类)。这是应用的分类体系, 所有账号都应有, 而非仅演示账号。
+  // 分类树版本: v1=93 节点; v2=扩充支出子类簇 + 每个有子节点的分类补"其他"兜底。
+  // 升级是【增量】: 只新增节点(新 uid), 绝不动已有节点 id → 存量交易的 categoryId 保持有效(数据联动硬约束)。
+  const CAT_TREE_VERSION = 2;
+  // v2 新增的支出子类簇(按"根名"追加, 幂等; 根有同名如"创业"时按 type 区分)
+  const CAT_V2_ADD = [
+    { root: '生活', name: '宠物', color: '#fa8c16', children: ['宠物粮', '宠物医疗', '宠物用品'] },
+    { root: '生活', name: '美妆护肤', color: '#eb2f96', children: ['护肤品', '彩妆', '美发美甲'] },
+    { root: '生活', name: '人情往来', color: '#f5222d', children: ['红包', '份子钱', '礼物'] },
+    { root: '生活', name: '订阅会员', color: '#13c2c2', children: ['视频会员', '音乐会员', '其他会员'] },
+    { root: '生活', name: '旅行度假', color: '#00b96b', children: ['景点门票', '酒店民宿', '旅行交通', '纪念品'] },
+    { root: '交通', name: '共享出行', color: '#13c2c2', children: ['共享单车', '共享电单车'] },
+    { root: '交通', name: '过路费', color: '#ad4e00', children: ['高速费', '过桥费'] },
+    { root: '交通', name: '车辆保险', color: '#a8071a', children: ['交强险', '商业险'] },
+    { root: '医疗', name: '齿科眼科', color: '#cf1322', children: ['牙科', '眼科'] },
+    { root: '医疗', name: '心理咨询', color: '#722ed1', children: ['咨询费', '心理测评'] },
+    { root: '教育', name: '文具', color: '#0a3320', children: ['笔', '本册', '画材'] },
+    { root: '教育', name: '网课', color: '#08979c', children: ['线上课程', '录播课'] },
+    { root: '教育', name: '考试报名', color: '#237804', children: ['报名费', '材料费'] },
+    { root: '创业', name: '物流仓储', color: '#36cfc9', children: ['快递', '仓储'] },
+    { root: '创业', name: '人工成本', color: '#0f5132', children: ['工资', '社保'] },
+    { root: '创业', name: '办公费用', color: '#722ed1', children: ['房租', '水电', '办公用品'] },
+  ];
+  // 增量应用 v2: ①按根追加 CAT_V2_ADD 子类簇 ②给每个有子节点的分类(含根)补"其他"叶子。幂等可重复执行。
+  function applyCatTreeV2(cats) {
+    if (!cats) return;
+    // 1) 追加新子类簇(子类 + 小类, 均新 uid)
+    CAT_V2_ADD.forEach(add => {
+      const root = cats.find(c => !c.parent && c.name === add.root && c.type === 'expense');
+      if (!root) return;
+      if (cats.some(c => c.parent === root.id && c.name === add.name)) return;
+      const sub = {
+        id: Util.uid(), name: add.name, icon: root.icon, type: root.type,
+        color: add.color || root.color, category: root.category, parent: root.id,
+      };
+      cats.push(sub);
+      (add.children || []).forEach(nm => cats.push({
+        id: Util.uid(), name: nm, icon: root.icon, type: root.type,
+        color: root.color, category: root.category, parent: sub.id,
+      }));
+    });
+    // 2) 全支"其他"兜底: 有子节点的分类(含根)若没有名为"其他"的子节点, 追加一个叶子
+    const byParent = {};
+    cats.forEach(c => { (byParent[c.parent] = byParent[c.parent] || []).push(c); });
+    cats.forEach(node => {
+      const kids = byParent[node.id] || [];
+      if (!kids.length) return;
+      if (kids.some(k => k.name === '其他')) return;
+      cats.push({
+        id: Util.uid(), name: '其他', icon: node.icon, type: node.type,
+        color: node.color, category: node.category, parent: node.id,
+      });
+    });
+  }
+  // 分类树版本升级(老账号增量迁移): 应用 v2 增量并把版本号写到 meta
+  function ensureCatTreeVersion() {
+    const ver = (cache.meta && cache.meta.treeVersion) || 1;
+    if (ver >= CAT_TREE_VERSION) return;
+    applyCatTreeV2(cache.categories);
+    cache.meta = cache.meta || {};
+    cache.meta.treeVersion = CAT_TREE_VERSION;
+    save();
+  }
   let _baseCatIdByName = {};
   function seedBaseCategories() {
     const cats = [];
@@ -763,6 +827,9 @@ const Data = (() => {
       ]},
     ].forEach(s => seedCat(s, null, null));
     cache.categories = cats;
+    applyCatTreeV2(cache.categories);            // 增量追加 v2 新支出子类 + 全支"其他"兜底
+    cache.meta = cache.meta || {};
+    cache.meta.treeVersion = CAT_TREE_VERSION;   // 新账号直接标记 v2
     save();
   }
 
