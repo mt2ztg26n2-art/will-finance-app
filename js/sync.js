@@ -265,7 +265,10 @@ const Sync = (() => {
       // 先建立本机命名空间(meta.currentUser=u), 防止 importAll 后 save() 因 meta 为空而把云端拉回的数据丢弃
       Data.load(u);
       const remote = await pull(false);
-      if (remote && remote.data && (remote.data.accounts && remote.data.accounts.length)) {
+      // 判定"云端有此账号": 只要云端存在该行且 data 非空即可。
+      // 注意: 不能要求 accounts 非空 —— 新注册的账号账本是空的(还没记账),
+      // 但账号本身是存在的; 否则新账号跨设备登录会被误判为"云端不存在"。
+      if (remote && remote.data && Object.keys(remote.data).length > 0) {
         Data.importAll(JSON.stringify(remote.data));
         // 兜底: 云端数据的 meta.currentUser 可能缺失, 强制绑定到本账号以保证本地可持久化;
         // 同时确保本地账号记录(密码哈希)存在, 使后续离线登录也能通过校验。
