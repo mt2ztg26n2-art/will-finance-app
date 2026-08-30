@@ -103,12 +103,18 @@ const Auth = (() => {
     if (!u) return { ok: false, error: '账号不存在' };
     u.password = Util.hash(newPwd);
     Data.save();
+    // v2: 云端身份与 App 密码解耦, 重置密码不影响云端登录, 本地数据原样保留。
+    // 清掉本地云端会话, 下次登录用 v2 token 重新鉴权, 避免沿用旧 refresh token 的
+    // 陈旧会话状态。
+    try { if (window.Sync && Sync.resetCloud) Sync.resetCloud(); } catch (e) {}
     return { ok: true };
   }
 
   function logout() {
     localStorage.removeItem(SESSION_KEY);
-    Data.clear();
+    // v2 修复: 退出登录【绝不删除用户财务数据】。旧版在此调用 Data.clear(),
+    // 会物理删除 cfo:<用户名>:data 整份本地账本 —— 若云端同步异常/未同步,
+    // "退出后再登录"数据就全部消失了。现在只清除登录态, 数据文件完整保留。
   }
 
   function getCurrentUser() {

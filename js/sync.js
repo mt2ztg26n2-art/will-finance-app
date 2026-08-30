@@ -17,6 +17,7 @@ const Sync = (() => {
   let syncing = false;
   let backoffUntil = 0;          // 触发限流(429)后静默退避, 期间不重试
   let status = 'disabled';       // disabled | idle | syncing | synced | offline
+  let lastPushOk = false;        // v2: 本会话最近一次上传是否成功(拉取覆盖保护的开关)
   let lastLoginStatus = null;    // 最近一次 ensureSession 的 HTTP 状态码, 供 loginRemote 区分失败原因
   let emailConfirmBlocked = false; // Supabase "Confirm email" 开启: 注册/登录返回无会话 或 账号存在但登录被拒
   let blockedReason = null;        // 'confirm_email_on'(确认开关仍开) | 'ghost_account'(账号创建时确认未关→未确认幽灵账号) | null
@@ -36,22 +37,38 @@ const Sync = (() => {
   function sessKey(u) { return 'cfo:' + u + ':supasess'; }
   function pushKey(u) { return 'cfo:' + u + ':lastpush'; }
 
-  // 关键: syncPw 必须"按(用户 + App登录密码)确定性派生", 否则每台设备算出不同 token,
-  // 永远登不上同一个云端账号 -> 跨设备同步彻底失效。用独立盐域(prefix 不同),
-  // 保证该 token 与 App 登录密码"不相等", 即使 Supabase 泄露也无法反推 App 密码。
-  function derivePw(u, appPassword) {
+  // ============ v2 修复: 云端身份与 App 登录密码【解耦】 ============
+  // 旧版(v1): syncPw = hash('will-sync-v1|用户|App密码')。用户忘记密码重置后,
+  // App 密码变了 -> 派生的云端 token 失配 -> 登不上原云端账号 -> 触发"幽灵账号
+  // 自愈"换 +vN 邮箱重建空账号 -> 多设备云端账号分叉(两端不同步), 且空账号数据
+  // 反噬覆盖本地(数据消失)。根因就是云端身份不该依赖 App 密码。
+  // 新版(v2): syncPw 只由【用户名 + 固定盐】确定性派生, 改/重置 App 密码完全
+  // 不影响云端登录。兼容旧 token: 登录云端失败时用本地遗留的 v1 token 重试,
+  // 成功后把云端密码平滑升级为 v2 token, 老用户无感迁移。
+  function derivePw(u) {
+    const src = 'will-sync-v2|' + u;
+    return Util.hash ? Util.hash(src) : ('fallback_' + src.length);
+  }
+  function legacyDerivePw(u, appPassword) {
     const src = 'will-sync-v1|' + u + '|' + (appPassword || '');
     return Util.hash ? Util.hash(src) : ('fallback_' + src.length);
   }
-  function getPw(u, appPassword) {
-    if (appPassword) {
-      // 登录/注册时拿到明文密码 -> 派生并持久化, 供后续刷新/重载复用
-      const pw = derivePw(u, appPassword);
-      try { localStorage.setItem(pwKey(u), pw); } catch (e) {}
-      return pw;
-    }
-    // 重载/无明文密码时: 读本机已存的派生 token
-    try { return localStorage.getItem(pwKey(u)) || ''; } catch (e) { return ''; }
+  function legacyKey(u) { return 'cfo:' + u + ':supapwlegacy'; }
+  function getPw(u) {
+    // v2: 云端 token 与 App 密码无关, 无需明文密码; 每次调用保证本机存的是 v2 token
+    const pw = derivePw(u);
+    try {
+      const existing = localStorage.getItem(pwKey(u));
+      if (existing && existing !== pw) {
+        // 本机残留 v1 旧 token(掺过 App 密码) -> 挪到 legacy 槽, 供平滑迁移尝试
+        try { localStorage.setItem(legacyKey(u), existing); } catch (e) {}
+      }
+      localStorage.setItem(pwKey(u), pw);
+    } catch (e) {}
+    return pw;
+  }
+  function getLegacyPw(u) {
+    try { return localStorage.getItem(legacyKey(u)) || ''; } catch (e) { return ''; }
   }
   function loadSession(u) {
     try { return JSON.parse(localStorage.getItem(sessKey(u)) || 'null'); } catch (e) { return null; }
@@ -130,6 +147,25 @@ const Sync = (() => {
     saveSession(username, session);
   }
 
+  // 把云端账号密码升级为 v2 token(仅在用旧 token 登录成功后调用, 平滑迁移)
+  async function updateCloudPassword(newToken) {
+    if (!session || !session.access_token) return false;
+    try {
+      const r = await fetch(URL + '/auth/v1/user?apikey=' + encodeURIComponent(KEY), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'apikey': KEY, 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({ password: newToken })
+      });
+      if (r.ok) {
+        try { localStorage.setItem(pwKey(username), newToken); } catch (e) {}
+        try { localStorage.removeItem(legacyKey(username)); } catch (e) {}
+        return true;
+      }
+      console.warn('[Sync] updateCloudPassword 失败', r.status);
+      return false;
+    } catch (e) { console.warn('[Sync] updateCloudPassword error', e); return false; }
+  }
+
   async function ensureSession(allowSignup) {
     lastLoginStatus = null;
     if (!enabled()) return false;
@@ -142,17 +178,25 @@ const Sync = (() => {
     const pw = getPw(username);
     if (!pw) { console.warn('[Sync] 缺少同步令牌, 跳过云端鉴权'); return false; }
     const email = emailOf(username);
-    // 先试登录
-    let r = await fetch(URL + '/auth/v1/token?grant_type=password&apikey=' + encodeURIComponent(KEY), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, password: pw })
-    });
-    if (r.status === 429) { hitBackoff(); lastLoginStatus = 429; throw new Error('rate_limit'); }
-    if (r.ok) {
+    // 候选令牌: v2 优先, v1 遗留兜底(平滑迁移老账号)。逐个尝试登录
+    const legacy = getLegacyPw(username);
+    const candidates = (legacy && legacy !== pw) ? [pw, legacy] : [pw];
+    let r = null, usedLegacy = false;
+    for (const cand of candidates) {
+      r = await fetch(URL + '/auth/v1/token?grant_type=password&apikey=' + encodeURIComponent(KEY), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: cand })
+      });
+      if (r.status === 429) { hitBackoff(); lastLoginStatus = 429; throw new Error('rate_limit'); }
+      if (r.ok) { usedLegacy = (cand !== pw); break; }
+    }
+    if (r && r.ok) {
       const j = await r.json();
       session = { access_token: j.access_token, refresh_token: j.refresh_token, user_id: j.user && j.user.id, expires_at: j.expires_at };
       saveSession(username, session);
       emailConfirmBlocked = false; blockedWarned = false; blockedReason = null;
+      // 用旧 token 登录成功 -> 云端密码平滑升级为 v2 token, 之后不再依赖 legacy
+      if (usedLegacy) { try { await updateCloudPassword(pw); } catch (e) {} }
       return true;
     }
     const signInRejected = (r.status === 400 || r.status === 422);
@@ -216,12 +260,12 @@ const Sync = (() => {
   async function loginRemote(u, appPassword) {
     if (!enabled()) return { ok: false, reason: 'disabled' };
     username = u;
-    getPw(u, appPassword);
+    getPw(u);
     try {
       // 先建立本机命名空间(meta.currentUser=u), 防止 importAll 后 save() 因 meta 为空而把云端拉回的数据丢弃
       Data.load(u);
       const remote = await pull(false);
-      if (remote && remote.data) {
+      if (remote && remote.data && (remote.data.accounts && remote.data.accounts.length)) {
         Data.importAll(JSON.stringify(remote.data));
         // 兜底: 云端数据的 meta.currentUser 可能缺失, 强制绑定到本账号以保证本地可持久化;
         // 同时确保本地账号记录(密码哈希)存在, 使后续离线登录也能通过校验。
@@ -249,7 +293,8 @@ const Sync = (() => {
 
   async function push() {
     if (!enabled() || !username) return;
-    if (!(await ensureSession())) return;
+    // v2 覆盖保护: 上传被阻断(无会话/鉴权失败)时, 必须标记失败, 禁止后续拉取覆盖本地
+    if (!(await ensureSession())) { lastPushOk = false; return; }
     let data;
     try { data = JSON.parse(Data.exportAll()); } catch (e) { return; }
     delete data.exportedAt;
@@ -259,8 +304,8 @@ const Sync = (() => {
     let r = await fetch(URL + '/rest/v1/cfo_data?user_id=eq.' + encodeURIComponent(session.user_id), {
       method: 'PATCH', headers: headers, body: JSON.stringify({ data: data, updated_at: now })
     });
-    if (r.status === 429) { hitBackoff(); throw new Error('rate_limit'); }
-    if (r.status === 401) { try { await refresh(); } catch (e) {} return push(); }
+    if (r.status === 429) { hitBackoff(); lastPushOk = false; throw new Error('rate_limit'); }
+    if (r.status === 401) { try { await refresh(); } catch (e) { lastPushOk = false; } return push(); }
     if (r.ok) {
       let arr = [];
       try { arr = await r.json(); } catch (e) {}
@@ -269,10 +314,15 @@ const Sync = (() => {
         const ins = await fetch(URL + '/rest/v1/cfo_data?apikey=' + encodeURIComponent(KEY), {
           method: 'POST', headers: headers, body: JSON.stringify({ user_id: session.user_id, data: data, updated_at: now })
         });
-        if (ins.ok) markPushed(username, Date.parse(now));
+        if (ins.ok) { markPushed(username, Date.parse(now)); lastPushOk = true; }
+        else { lastPushOk = false; console.warn('[Sync] 首次上传被拒(检查 RLS 策略/publishable key 权限)'); }
       } else {
         markPushed(username, Date.parse(now));
+        lastPushOk = true;
       }
+    } else {
+      lastPushOk = false;
+      console.warn('[Sync] push PATCH 失败', r.status);
     }
   }
 
@@ -319,6 +369,33 @@ const Sync = (() => {
     }
   }
 
+  // ============ v2 覆盖保护 ============
+  // 云端快照要覆盖本地前, 先把本地完整 JSON 备份到 cfo:<u>:backup(滚动保留最近 5 份),
+  // 万一云端数据异常(空/旧/被别的设备覆盖), 用户仍可从备份恢复。
+  function backupKey(u) { return 'cfo:' + u + ':backup'; }
+  function backupLocal() {
+    try {
+      const key = backupKey(username);
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+      if (!Array.isArray(arr)) arr = [];
+      arr.unshift({ t: Date.now(), data: Data.exportAll() });
+      if (arr.length > 5) arr = arr.slice(0, 5);
+      localStorage.setItem(key, JSON.stringify(arr));
+    } catch (e) { console.warn('[Sync] backupLocal failed', e); }
+  }
+  // 本地是否有业务数据(账户/交易/存钱罐)。读不到时保守返回 true(禁止覆盖)。
+  function localHasData() {
+    try {
+      return !!(Data.getAccounts && (Data.getAccounts().length || Data.getTransactions().length || Data.getPots().length));
+    } catch (e) { return true; }
+  }
+  // 云端快照是否实质为空(没有账户也没有交易)
+  function remoteEmpty(d) {
+    d = d || {};
+    return !(d.accounts && d.accounts.length) && !(d.transactions && d.transactions.length);
+  }
+
   async function syncNow(opts) {
     opts = opts || {};
     if (!enabled()) { setStatus('disabled'); return; }
@@ -330,8 +407,14 @@ const Sync = (() => {
       if (remote) {
         const remoteTs = Date.parse(remote.updated_at) || 0;
         const localTs = getLastPush(username);
-        if (remoteTs > localTs) {
-          Data.importAll(JSON.stringify(remote.data || {}));
+        const remoteData = remote.data || {};
+        // v2 覆盖保护: 只有当【本地上传成功过】或【本地本来就无数据】时才允许云端覆盖本地。
+        // 否则(上传被阻断: 鉴权失败/幽灵账号/RLS 未配)一律以本地为准只推不拉,
+        // 杜绝"记一笔收入 -> 30 秒后被云端旧快照抹掉"的回滚灾难。
+        const canPull = (lastPushOk || !localHasData()) && !remoteEmpty(remoteData);
+        if (remoteTs > localTs && canPull) {
+          backupLocal();                        // 覆盖前先备份本地
+          Data.importAll(JSON.stringify(remoteData));
           markPushed(username, remoteTs);
           if (typeof Router !== 'undefined' && Router.handle) Router.handle();
           if (typeof Util !== 'undefined' && Util.toast) Util.toast(I18n.t('已从云端同步'), 'success');
@@ -366,32 +449,17 @@ const Sync = (() => {
     if (!u) return;
     if (username === u && session) { setStatus('idle'); return; } // 同一用户已初始化, 避免重复拉取/推送
     username = u;
-    if (appPassword) getPw(u, appPassword); // 登录/注册时持久化派生 token
+    getPw(u); // v2: 云端 token 与 App 密码无关, 无需明文密码也能派生/持久化
     session = loadSession(u);
     adoptCloudEmailVer(); // 收敛其它设备已 bump 的云端邮箱版本
     setStatus('idle');
     syncNow();
   }
 
-  // App 密码修改后, 把云端账号密码同步成"新密码派生的 token", 否则下次登录会失败
+  // v2: 云端身份与 App 密码解耦, 修改/重置 App 密码【无需】迁移云端密码。
+  // 保留此 API 仅为兼容旧调用方(settings.js 改密码后调用), 直接成功返回。
   async function migratePassword(oldAppPw, newAppPw) {
-    if (!enabled() || !username) return false;
-    try {
-      if (!(await ensureSession())) return false;
-      const newToken = derivePw(username, newAppPw);
-      const oldToken = derivePw(username, oldAppPw);
-      const r = await fetch(URL + '/auth/v1/user?apikey=' + encodeURIComponent(KEY), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'apikey': KEY, 'Authorization': 'Bearer ' + session.access_token },
-        body: JSON.stringify({ password: newToken })
-      });
-      if (r.ok) {
-        try { localStorage.setItem(pwKey(username), newToken); } catch (e) {}
-        return true;
-      }
-      console.warn('[Sync] migratePassword 失败', r.status);
-      return false;
-    } catch (e) { console.warn('[Sync] migratePassword error', e); return false; }
+    return true;
   }
 
   function signOut() {
